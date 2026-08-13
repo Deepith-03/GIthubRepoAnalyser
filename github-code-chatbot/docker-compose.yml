@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    # We use the official pgvector image which bundles Postgres with the vector extension
+    image: pgvector/pgvector:pg16
+    container_name: chatbot_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: vector_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - chatbot_db_data:/var/lib/postgresql/data
+
+volumes:
+  chatbot_db_data:
