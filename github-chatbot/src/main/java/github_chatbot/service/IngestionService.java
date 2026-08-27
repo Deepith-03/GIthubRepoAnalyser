@@ -41,7 +41,11 @@ public class IngestionService {
     public int ingestRepository(String githubUrl) {
         log.info("Starting single-repository ingestion pipeline for: {}", githubUrl);
 
-        // 1. Purge previous vector store entries to maintain single active repo mode
+        // 1a. Evict any cached files for this URL so we always fetch fresh data on re-ingest.
+        //     This ensures ArchitectureController will also see the latest version of the repo.
+        gitHubService.clearCache(githubUrl);
+
+        // 1b. Purge previous vector store entries to maintain single active repo mode
         clearPreviousVectors();
 
         // 2. Fetch raw code files from GitHub Service

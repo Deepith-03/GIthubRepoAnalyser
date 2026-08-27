@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,6 +19,18 @@ public class GitHubService {
     private static final Logger log = LoggerFactory.getLogger(GitHubService.class);
 
     private final RestClient restClient;
+
+    /**
+     * In-memory cache for repository files, keyed by the canonical GitHub URL.
+     *
+     * <p>Populated the first time {@link #fetchRepositoryFiles(String)} succeeds for
+     * a given URL. The {@link github_chatbot.service.ArchitectureController} reads
+     * from this cache instead of making a second GitHub API round-trip.</p>
+     *
+     * <p>Cleared automatically at the start of each new ingestion via
+     * {@link #clearCache(String)}, so a force-reingest always gets fresh data.</p>
+     */
+    private final Map<String, List<GitHubFile>> fileCache = new ConcurrentHashMap<>();
 
     // Set of accepted file extensions for source code, configuration, and documentation
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
@@ -115,7 +128,23 @@ public class GitHubService {
     /**
      * Recursively fetches source code files from a GitHub repository.
      */
+    /**
+     * Returns cached files for the given URL if available, otherwise fetches from
+     * GitHub and populates the cache before returning.
+     *
+     * <p>Cache key: the raw {@code githubUrl} string as provided by the caller.
+     * Call {@link #clearCache(String)} before re-ingesting to force a refresh.</p>
+     */
     public List<GitHubFile> fetchRepositoryFiles(String githubUrl) {
+        // ── Cache hit: return immediately without hitting the GitHub API again ──
+        if (fileCache.containsKey(githubUrl)) {
+            log.info("Cache HIT for '{}' — returning {} cached files.",
+                    githubUrl, fileCache.get(githubUrl).size());
+            return fileCache.get(githubUrl);
+        }
+
+        // ── Cache miss: fetch from GitHub ──
+        log.info("Cache MISS for '{}' — fetching from GitHub API...", githubUrl);
         String[] ownerAndRepo = extractOwnerAndRepo(githubUrl);
         String owner = ownerAndRepo[0];
         String repo = ownerAndRepo[1];
@@ -161,7 +190,27 @@ public class GitHubService {
                 .toList();
 
         log.info("Successfully fetched {} source code files from {}/{}", resultFiles.size(), owner, repo);
+
+        // ── Populate cache so future calls (e.g., /api/architecture) skip the API ──
+        fileCache.put(githubUrl, resultFiles);
+        log.info("Cached {} files for URL: {}", resultFiles.size(), githubUrl);
+
         return resultFiles;
+    }
+
+    /**
+     * Removes the cached file list for the given repository URL.
+     *
+     * <p>Should be called at the start of a fresh ingestion so that the new
+     * repository content is fetched from GitHub rather than served stale.</p>
+     *
+     * @param githubUrl The repository URL whose cache entry should be evicted.
+     */
+    public void clearCache(String githubUrl) {
+        List<GitHubFile> removed = fileCache.remove(githubUrl);
+        if (removed != null) {
+            log.info("Cache cleared for '{}' ({} files evicted).", githubUrl, removed.size());
+        }
     }
 
     /**

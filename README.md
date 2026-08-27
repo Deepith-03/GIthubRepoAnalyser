@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# GIthubRepoAnalyser
-=======
 # GitRepAnalyser: Enterprise-Grade GitHub Code Chatbot (RAG Engine)
 
 An enterprise-grade Retrieval-Augmented Generation (RAG) system built with **Java Spring Boot 3.3.0**, **Spring AI**, **Dockerized PostgreSQL (pgvector)**, and **Google Gemini AI**. 
@@ -156,4 +153,3 @@ java -jar github-chatbot/target/github-chatbot-0.0.1-SNAPSHOT.jar
   ]
 }
 ```
->>>>>>> 8765253 (first commit)

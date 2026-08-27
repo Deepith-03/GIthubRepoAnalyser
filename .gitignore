@@ -1,0 +1,21 @@
+# Root .gitignore for GithubRepoAnalyser project
+
+# Environment & Secret files
+.env
+.env.local
+*.env
+application-local.properties
+
+# Dependencies & Build artifacts
+node_modules/
+dist/
+target/
+.output/
+.wrangler/
+.tanstack/
+
+# OS and Editor files
+.DS_Store
+.vscode/
+.idea/
+*.iml
